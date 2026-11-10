@@ -27,3 +27,7 @@ No database, paid search, analytics, or account service is used. Live briefs and
 ### Gemini model errors
 
 `GEMINI_MODEL` accepts a model ID (e.g. `gemini-2.5-flash`), optionally prefixed with `models/`; do not enter a URL. If Google returns 404, SparkLab queries the authenticated model catalogue and retries once with an available stable Flash model supporting `generateContent`. It excludes Pro and preview models. This does not guarantee free-tier eligibility: check quota and pricing for your account. Authentication and quota errors are reported separately and never trigger model switching.
+
+### Workflow timeouts and retries
+
+The browser runs research, creation, and review as separate requests, with progress labels. Research has a 25-second limit, creation 100 seconds, and review 60 seconds; each API invocation declares a 180-second Vercel maximum. Actual platform limits still depend on the deployment configuration. Compatible Gemini 2.5 Flash models use a zero thinking budget to reduce latency. A model retry shares the stage's original deadline. No background jobs or paid queue are required. Completed stages are retained in the current browser page while a failed stage is retried (refreshing discards pending work). Research metadata is signed server-side and expires after 30 minutes, so a creation request cannot silently replace retrieved sources. A new generation or revision starts a new workflow. Live end-to-end latency must be checked with your deployed key; local regression tests use simulated provider responses.
