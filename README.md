@@ -23,3 +23,7 @@ Approve & save keeps activities in this browser's localStorage. Existing accepte
 `lib/providers.mjs` contains server-only search and model adapters; `app/api/workflow/route.js` orchestrates research → creation → review. Replace or extend the provider adapter without changing the interface. API errors never silently become demo results. Keys are read only by the server.
 
 No database, paid search, analytics, or account service is used. Live briefs and source metadata are sent to Google; do not include personal learner data. An unauthenticated public deployment exposes a billable API endpoint: keep this personal prototype behind Vercel Deployment Protection or add authentication and durable rate limiting before public release. The prototype has input limits and request timeouts, but no distributed quota enforcement. Research and review remain advisory, and facilitator approval is required.
+
+### Gemini model errors
+
+`GEMINI_MODEL` accepts a model ID (e.g. `gemini-2.5-flash`), optionally prefixed with `models/`; do not enter a URL. If Google returns 404, SparkLab queries the authenticated model catalogue and retries once with an available stable Flash model supporting `generateContent`. It excludes Pro and preview models. This does not guarantee free-tier eligibility: check quota and pricing for your account. Authentication and quota errors are reported separately and never trigger model switching.
