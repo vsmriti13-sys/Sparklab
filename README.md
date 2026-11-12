@@ -1,33 +1,55 @@
-# SparkLab
+# SparkLab — Educational research and teaching-material studio
 
-A standalone research-to-activity studio for Erasmus+ teacher trainers. Separate from QuestCraft and Island Simulation Lab.
+Standalone Next.js application for Erasmus+ teacher trainers and classroom teachers. It is separate from QuestCraft and Island Simulation Lab. No database, paid search service, mock research, demonstration generator, or Markdown deliverable is used.
 
-## Run locally
+## Workflow
 
-Use Node.js 20.9+ (tested with Node 24). Run `npm ci`, then `npm run dev`. Open port 3000. `npm test` checks brief validation and demonstration exports; `npm run build` validates the production build.
+1. Define a classroom lesson or teacher-training workshop: topic, measurable objectives, actual participant age, duration, group size, course context and access needs.
+2. Search Crossref for actual publication records and abstracts where available. Inspect the source links and select 1–5 resources. Metadata-only sources are labelled and cannot substantiate findings. Search relevance must be checked by the user.
+3. Gemini designs the selected instructional context: usable participant task instructions, original scenarios/readings/data, worksheet prompts, expected responses in a separate facilitator section, UDL supports and a research-to-design rationale. Exact quoted abstract excerpts are checked against the retrieved text. Unsupported quotes and citations to unselected sources fail validation.
+4. A separate model call reviews pedagogy, UDL, audience/age, feasibility, evidence integrity, and separation of private answers. Failed checks block approval and downloads. Request a revision, then review again.
+5. Approve the reviewed design, save it in this browser, and download actual files:
+   - Editable participant PowerPoint (`.pptx`), with tasks and stimulus; no facilitator notes or answer fields.
+   - Editable participant worksheet (`.docx`) with stimulus, prompts and response space.
+   - Printable A4 participant worksheet (`.pdf`) with embedded Unicode fonts and pagination.
+   - Separate facilitator guide (`.docx`) with preparation, possible responses, assessment, adaptations, research rationale and source links.
 
-No credentials are required for the labelled demonstration mode. The demo uses a fixed workshop structure with your topic; it performs no research and does not support AI revisions.
+All exports use the same validated content. Slides paginate at a readable 22-point body size rather than shrinking text to fit. Word and PDF worksheets contain the same tasks; pagination can differ. The facilitator guide uses logical step numbers matching the slides. Participant decks do not include hidden answer notes. User approval is a professional judgment, not proof of efficacy or originality.
 
-## Enable live mode
+## Setup and Vercel
 
-Copy `.env.example` to `.env.local` and set `GEMINI_API_KEY` privately. Optional: `GEMINI_MODEL` (default `gemini-2.5-flash`) and `AI_PROVIDER=gemini`. Restart the server. On Vercel, import this repository as a Next.js project and enter those variables in project settings. Never prefix keys with `NEXT_PUBLIC_` or commit them. Gemini free-tier eligibility, regional availability, quotas, and model availability depend on your Google account; no free usage is guaranteed.
+Node.js 20.9+ (tested on Node 24).
 
-The server calls Crossref's scholarly search tool, sends retrieved metadata and the brief to the provider, creates a workshop, and runs a separate critical review. The UI shows sources separately from AI design hypotheses. Crossref records verify bibliographic identity, not research findings. Read the original papers before using evidence claims. No full text is retrieved or verified in this prototype. Search may return irrelevant records: inspect them before approval.
+```bash
+npm ci --cache /tmp/sparklab-npm
+npm run dev
+```
 
-## Approval, revisions, and exports
+Copy `.env.example` to an untracked `.env.local` and set `GEMINI_API_KEY` securely, or set it in Vercel project environment variables. Optional: `GEMINI_MODEL=gemini-2.5-flash`, `AI_PROVIDER=gemini`. Keys are server-only. Gemini free-tier availability depends on account, region, selected model and quota; costs are not guaranteed to be zero. 404 model failures trigger discovery of an available stable Flash model; quota failures do not trigger switching. Gemini 2.5 Flash uses a zero thinking budget to reduce latency.
 
-Approve & save keeps activities in this browser's localStorage. Existing accepted titles are supplied to the live provider as avoidance context; semantic duplicate prevention is advisory, not guaranteed. The demo uses one repeatable structure. AI revisions regenerate research and the activity using your requested changes, and require approval again. Download exports a Markdown facilitator pack with participant invitations, reflection prompts, materials, UDL notes, review, and sources. Browser data is neither synced nor backed up; download important packs. Approval represents your judgment, not independent validation.
+Deploy from the GitHub repository with Vercel's Next.js defaults and a supported Node runtime. `/api/studio` declares 180 seconds; the actual available function duration depends on deployment settings. Research, design and review are separate requests. Pending stages stay in the current page until navigation/refresh. Signed research/design tokens expire after two hours. Approved browser-local packs can still export after tokens expire, but regeneration requires a fresh search. Use the **current production domain**, not an old deployment-specific URL, when testing updates.
 
-## Provider and deployment boundary
+Research needs `api.crossref.org`; generation needs `generativelanguage.googleapis.com`. Downloads do not call Gemini. Bundled DejaVu fonts and their license are in `assets/fonts`; Next.js tracing explicitly includes them in the export function. The inherited interface optionally loads Google Fonts; these are not needed for exported files.
 
-`lib/providers.mjs` contains server-only search and model adapters; `app/api/workflow/route.js` orchestrates research → creation → review. Replace or extend the provider adapter without changing the interface. API errors never silently become demo results. Keys are read only by the server.
+For cloud tasks, use the existing checkout `/workspace/Sparklab`; do not create a Git worktree unless explicitly requested. Retained files and dependencies survive separately from live processes; restart `npm run dev` as needed.
 
-No database, paid search, analytics, or account service is used. Live briefs and source metadata are sent to Google; do not include personal learner data. An unauthenticated public deployment exposes a billable API endpoint: keep this personal prototype behind Vercel Deployment Protection or add authentication and durable rate limiting before public release. The prototype has input limits and request timeouts, but no distributed quota enforcement. Research and review remain advisory, and facilitator approval is required.
+## Validation: distinguish regression checks from live evidence
 
-### Gemini model errors
+```bash
+npm test
+npm run build
+node scripts/validate-live.mjs https://YOUR-CURRENT-PRODUCTION-DOMAIN.vercel.app
+python scripts/check-files.py /tmp/sparklab-live-TIMESTAMP
+```
 
-`GEMINI_MODEL` accepts a model ID (e.g. `gemini-2.5-flash`), optionally prefixed with `models/`; do not enter a URL. If Google returns 404, SparkLab queries the authenticated model catalogue and retries once with an available stable Flash model supporting `generateContent`. It excludes Pro and preview models. This does not guarantee free-tier eligibility: check quota and pricing for your account. Authentication and quota errors are reported separately and never trigger model switching.
+The live script uses a real topic, **retrieval practice and durable learning**, retrieves actual sources, selects relevant retrieved abstracts, calls the real model, reviews the design, and downloads all four files through the actual HTTP export endpoint. It stops on missing credentials, denied access, unavailable sources, invalid content or unresolved review failures. There is no fake success path. Source and output JSON are retained beside the files for inspection. The script's approval is a validation-run approval, not a saved user approval.
 
-### Workflow timeouts and retries
+Afterward, open the `.pptx` and `.docx` files in PowerPoint/Word or LibreOffice. Render to PDF and inspect all pages for missing tasks, clipped text, stimulus availability, answer leakage and age fit. Open the direct worksheet PDF too. A passing build or a ZIP signature alone is insufficient.
 
-The browser runs research, creation, and review as separate requests, with progress labels. Research has a 25-second limit, creation 100 seconds, and review 60 seconds; each API invocation declares a 180-second Vercel maximum. Actual platform limits still depend on the deployment configuration. Compatible Gemini 2.5 Flash models use a zero thinking budget to reduce latency. A model retry shares the stage's original deadline. No background jobs or paid queue are required. Completed stages are retained in the current browser page while a failed stage is retried (refreshing discards pending work). Research metadata is signed server-side and expires after 30 minutes, so a creation request cannot silently replace retrieved sources. A new generation or revision starts a new workflow. Live end-to-end latency must be checked with your deployed key; local regression tests use simulated provider responses.
+`npm test` uses clearly marked fixtures solely for regression checks (schema, source integrity, model errors and binary exporters). Fixtures are never loaded by the application and are not evidence of a live research-to-materials run. Python inspection additionally needs `python-pptx`, `python-docx`, and `PyMuPDF`; these are validation tools, not application runtime dependencies.
+
+## Evidence, privacy and limits
+
+Crossref discovery currently covers publication metadata and available abstracts, not paywalled full text, a systematic review, or unrestricted web research. A source record proves identity; an exact abstract excerpt is retrieved text, not independent verification of its findings. Source selection, relevance, quality and applicability require human review. AI rationales and instructional designs are labelled as suggestions. The reviewer can miss semantic answer leakage or pedagogical flaws; inspect the previews before approval.
+
+Saved packs live only in this browser (`sparklab-studio-v1`) and are not synced or backed up. Earlier activity-generator storage is left untouched and is not misrepresented as complete teaching packs. Accepted pack titles are provided to Gemini as avoidance context; novelty/duplicate avoidance is advisory. Do not include personal learner information in briefs sent to Google. Keep deployments access-protected while using a personal key: the application has no account login or durable rate limiter. The export endpoint is stateless and can export a validated user-approved pack; it is not a cryptographic certificate of research quality. No credentials or live research tokens belong in GitHub.

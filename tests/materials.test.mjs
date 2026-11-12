@@ -1,0 +1,12 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {studioBrief,validateDesign,validateReview} from '../lib/material-schema.mjs';
+import {sealBundle,openBundle} from '../lib/bundle-token.mjs';
+import {plainText,discover} from '../lib/research.mjs';
+import {exportMaterial} from '../lib/exports.mjs';
+import {pack,brief,sources,design,review} from './fixtures/design.mjs';
+import {writeFile,mkdir} from 'node:fs/promises';
+test('design validation rejects invented quotations, citations, leaked answer fields',()=>{assert.ok(validateDesign(design,sources));const d=structuredClone(design);d.evidence[0].quote='Invented finding';assert.throws(()=>validateDesign(d,sources),/does not match/);d.evidence[0].quote='';d.evidence[0].sourceId='S2';assert.throws(()=>validateDesign(d,sources),/did not select/);const leak=structuredClone(design);leak.slides[0].answerKey='secret';assert.throws(()=>validateDesign(leak,sources),/must not include answers/);assert.throws(()=>studioBrief({...brief,kind:'unknown'}));});
+test('research token rejects tampering and wrong purpose; review readiness is computed from actual checks',()=>{const token=sealBundle('research',{sources},'test-key');assert.deepEqual(openBundle(token,'research','test-key').sources,sources);assert.throws(()=>openBundle(token+'x','research','test-key'));assert.throws(()=>openBundle(token,'design','test-key'));const failed=structuredClone(review);failed.checks[0].pass=false;assert.equal(validateReview(failed).ready,false);});
+test('research normalizes real provider-shaped records without fabricating abstracts',async()=>{const old=global.fetch;global.fetch=async()=>Response.json({message:{items:[{DOI:'10.1000/test-only',title:['A &amp; B'],abstract:'<jats:p>Read &amp; compare.</jats:p>'},{DOI:'10.1000/other',title:['No abstract']}]}});try{const r=await discover('learning');assert.equal(r[0].abstract,'Read & compare.');assert.equal(r[1].abstract,'');assert.match(r[1].verification,/No abstract/);assert.equal(plainText('<b>Choice</b> &amp; access'),'Choice & access');}finally{global.fetch=old;}});
+test('all four actual binary formats export from a validated pack',async()=>{await mkdir('/tmp/sparklab-file-tests',{recursive:true});for(const kind of ['slides','worksheetDocx','worksheetPdf','facilitator']){const file=await exportMaterial(kind,pack);assert.ok(file.bytes.length>3000);assert.equal(file.bytes.subarray(0,2).toString(),kind==='worksheetPdf'?'%P':'PK');await writeFile('/tmp/sparklab-file-tests/'+file.filename,file.bytes);}});

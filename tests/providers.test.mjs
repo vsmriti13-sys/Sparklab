@@ -1,10 +1,5 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {research,generateActivity} from '../lib/providers.mjs';
-import {demoActivity} from '../lib/workflow.mjs';
-test('research retains only returned source records and constructs DOI links',async()=>{const old=global.fetch;global.fetch=async()=>Response.json({message:{items:[{DOI:'10.1234/example',title:['Actual returned title'],published:{'date-parts':[[2024]]}},{title:['Missing DOI']}]}});try{const r=await research('UDL');assert.equal(r.length,1);assert.equal(r[0].url,'https://doi.org/10.1234%2Fexample');assert.match(r[0].verification,/not verified/);}finally{global.fetch=old;}});
-test('creation invokes a separate reviewer and removes unsupported source IDs',async()=>{const old=global.fetch;const activity=demoActivity({topic:'UDL'});activity.sourceIds=['S1','invented'];let calls=0;global.fetch=async()=>{calls++;return Response.json({candidates:[{content:{parts:[{text:JSON.stringify(calls===1?activity:{review:activity.review.map(r=>({...r,status:'Reviewed independently'}))})}]}}]});};try{const r=await generateActivity({topic:'UDL'},[{id:'S1'}]);assert.equal(calls,2);assert.deepEqual(r.sourceIds,['S1']);assert.equal(r.review[0].status,'Reviewed independently');}finally{global.fetch=old;}});
-
 test('404 discovers an available stable Flash model and retries only that model',async()=>{
  const {requestGeneration,normalizeModel}=await import('../lib/providers.mjs');
  assert.equal(normalizeModel(' models/gemini-2.5-flash '),'gemini-2.5-flash');
